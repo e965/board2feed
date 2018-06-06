@@ -3,13 +3,13 @@
 
 	require 'nokogiri/nokogiri.php';
 
-	function addFeedHeader($_to, $_link, $_board = 'gd') {
+	function addFeedHeader($_to, $_link, $_feedTitle, $_board = 'gd') {
 		$_to =   '<?xml version="1.0" encoding="UTF-8"?>';
 		$_to .=  '<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">';
 		$_to .=  '<channel>';
-		$_to .=  '<title>/' . $_board . '/ feed</title>';
+		$_to .=  '<title>'. $_feedTitle .'</title>';
 		$_to .=  '<link>' . $_link . '</link>';
-		$_to .=  '<description>/gd/ feed</description>';
+		$_to .=  '<description>/' . $_board . '/ feed</description>';
 
 		return $_to;
 	}
@@ -20,7 +20,7 @@
 	$_STREAM_context =
 		stream_context_create([
 			'http' => [
-				'header' => "User-Agent: Board2Feed script/1.1\r\n"
+				'header' => "User-Agent: Board2Feed script/1.1.1\r\n"
 			]
 		]);
 
@@ -82,7 +82,7 @@
 
 				$threadsInfo = sortThreadsByDate($threadsInfo, '2ch');
 
-				$rssFeed = addFeedHeader($rssFeed, $boardURL);
+				$rssFeed = addFeedHeader($rssFeed, $boardURL, '2ch/' . $board . '/ feed');
 
 				foreach ($threadsInfo as &$thread) {
 					$threadSubject = $thread->subject;
@@ -125,7 +125,7 @@
 
 				$threadsInfo = sortThreadsByDate($threadsInfo, '0ch');
 
-				$rssFeed = addFeedHeader($rssFeed, $boardURL);
+				$rssFeed = addFeedHeader($rssFeed, $boardURL, '0ch/' . $board . '/ feed');
 
 				foreach ($threadsInfo as &$thread) {
 					$threadSubject = $thread->thread->title;
@@ -170,7 +170,7 @@
 
 				$threadsInfo = sortThreadsByDate($threadsInfo, 'fox');
 
-				$rssFeed = addFeedHeader($rssFeed, $boardURL);
+				$rssFeed = addFeedHeader($rssFeed, $boardURL, 'lolifox/' . $board . '/ feed');
 
 				foreach ($threadsInfo as &$thread) {
 					$threadSubject = $thread['div'][0]['a'][0]['img'][0]['data-subject'];
@@ -196,12 +196,14 @@
 	function createGlobalFeed() {
 		$rssFile = 'sourceGlobal.rss';
 
+		$board = 'gd';
+
 		if (filemtime($rssFile) < time() - 10) {
 			$feedData = $GLOBALS['globalFeed'];
 
 			$feedData = sortThreadsByDate($feedData, 'global');
 
-			$rssFeed = addFeedHeader($rssFeed, 'https://github.com/tehcojam/board2feed');
+			$rssFeed = addFeedHeader($rssFeed, 'https://github.com/tehcojam/board2feed', 'Global /' . $board . '/ feed');
 
 			foreach ($feedData as &$feedItem) {
 				$rssFeed .= generateFeedItem($feedItem, true);
