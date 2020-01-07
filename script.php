@@ -3,15 +3,22 @@
 
 	require 'nokogiri/nokogiri.php';
 
-	function addFeedHeader($_to, $_link, $_feedTitle, $_board = 'gd') {
-		$_to =   '<?xml version="1.0" encoding="UTF-8"?>';
-		$_to .=  '<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">';
-		$_to .=  '<channel>';
-		$_to .=  '<title>'. $_feedTitle .'</title>';
-		$_to .=  '<link>' . $_link . '</link>';
-		$_to .=  '<description>/' . $_board . '/ feed</description>';
+	function addFeedHeader($_link, $_feedTitle, $_board = 'gd') {
+		$_feed =   '<?xml version="1.0" encoding="UTF-8"?>';
+		$_feed .=  '<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">';
+		$_feed .=  '<channel>';
+		$_feed .=  '<title>'. $_feedTitle .'</title>';
+		$_feed .=  '<link>' . $_link . '</link>';
+		$_feed .=  '<description>/' . $_board . '/ feed</description>';
 
-		return $_to;
+		return $_feed;
+	}
+
+	function addFeedFooter() {
+		$_feed =   '</channel>';
+		$_feed .=  '</rss>';
+
+		return $_feed;
 	}
 
 	/* https://stackoverflow.com/a/27516155 */
@@ -20,7 +27,7 @@
 	$_STREAM_context =
 		stream_context_create([
 			'http' => [
-				'header' => "User-Agent: Board2Feed script/1.1.1\r\n"
+				'header' => "User-Agent: Board2Feed script/1.2 beta\r\n"
 			]
 		]);
 
@@ -70,11 +77,11 @@
 
 		$apiURL = $boardURL . '/catalog_num.json';
 
-		$rssFile = 'source.rss';
+		$xmlFile = 'source.rss';
 
 		global $URLregEx, $_STREAM_context;
 
-		if (filemtime($rssFile) < time() - 10) {
+		if (filemtime($xmlFile) < time() - 10) {
 			$info = json_decode(file_get_contents($apiURL, false, $_STREAM_context));
 
 			if ($info) {
@@ -82,7 +89,7 @@
 
 				$threadsInfo = sortThreadsByDate($threadsInfo, '2ch');
 
-				$rssFeed = addFeedHeader($rssFeed, $boardURL, '2ch/' . $board . '/ feed');
+				$_feed = addFeedHeader($boardURL, '2ch/' . $board . '/ feed');
 
 				foreach ($threadsInfo as &$thread) {
 					$threadSubject = $thread->subject;
@@ -90,17 +97,16 @@
 
 					if (preg_match($URLregEx, $entity)) { continue; }
 
-					$rssFeed .= generateFeedItem([
+					$_feed .= generateFeedItem([
 						'title' =>      $threadSubject,
 						'link' =>       $boardURL . '/res/' . $thread->num . '.html',
 						'timestamp' =>  $thread->timestamp
 					]);
 				}
 
-				$rssFeed .= '</channel>';
-				$rssFeed .= '</rss>';
+				$_feed .= addFeedFooter();
 
-				file_put_contents(dirname(__FILE__) . '/' . $rssFile, $rssFeed);
+				file_put_contents(dirname(__FILE__) . '/' . $xmlFile, $_feed);
 			}
 		}
 	}
@@ -113,11 +119,11 @@
 
 		$apiURL = $nullchURL . '/api/board?dir=' . $board;
 
-		$rssFile = 'sourceN.rss';
+		$xmlFile = 'sourceN.rss';
 
 		global $URLregEx, $_STREAM_context;
 
-		if (filemtime($rssFile) < time() - 10) {
+		if (filemtime($xmlFile) < time() - 10) {
 			$info = json_decode(file_get_contents($apiURL, false, $_STREAM_context));
 
 			if ($info !== false) {
@@ -125,7 +131,7 @@
 
 				$threadsInfo = sortThreadsByDate($threadsInfo, '0ch');
 
-				$rssFeed = addFeedHeader($rssFeed, $boardURL, '0ch/' . $board . '/ feed');
+				$_feed = addFeedHeader($boardURL, '0ch/' . $board . '/ feed');
 
 				foreach ($threadsInfo as &$thread) {
 					$threadSubject = $thread->thread->title;
@@ -133,17 +139,16 @@
 
 					if (preg_match($URLregEx, $entity)) { continue; }
 
-					$rssFeed .= generateFeedItem([
+					$_feed .= generateFeedItem([
 						'title' =>      $threadSubject,
 						'link' =>       $boardURL . '/' . $thread->thread->id,
 						'timestamp' =>  $thread->opPost->date
 					]);
 				}
 
-				$rssFeed .= '</channel>';
-				$rssFeed .= '</rss>';
+				$_feed .= addFeedFooter();
 
-				file_put_contents(dirname(__FILE__) . '/' . $rssFile, $rssFeed);
+				file_put_contents(dirname(__FILE__) . '/' . $xmlFile, $_feed);
 			}
 		}
 	}
@@ -156,11 +161,11 @@
 
 		$catalogURL = $boardURL . '/catalog.html';
 
-		$rssFile = 'sourceF.rss';
+		$xmlFile = 'sourceF.rss';
 
 		global $URLregEx, $_STREAM_context;
 
-		if (filemtime($rssFile) < time() - 10) {
+		if (filemtime($xmlFile) < time() - 10) {
 			$info = file_get_contents($catalogURL, false, $_STREAM_context);
 
 			if ($info) {
@@ -170,7 +175,7 @@
 
 				$threadsInfo = sortThreadsByDate($threadsInfo, 'fox');
 
-				$rssFeed = addFeedHeader($rssFeed, $boardURL, 'lolifox/' . $board . '/ feed');
+				$_feed = addFeedHeader($boardURL, 'lolifox/' . $board . '/ feed');
 
 				foreach ($threadsInfo as &$thread) {
 					$threadSubject = $thread['div'][0]['a'][0]['img'][0]['data-subject'];
@@ -178,41 +183,39 @@
 
 					if (preg_match($URLregEx, $entity)) { continue; }
 
-					$rssFeed .= generateFeedItem([
+					$_feed .= generateFeedItem([
 						'title' =>      $threadSubject,
 						'link' =>       $boardURL . '/res/' . $thread['data-id'] . '.html',
 						'timestamp' =>  intval($thread['data-time'])
 					]);
 				}
 
-				$rssFeed .= '</channel>';
-				$rssFeed .= '</rss>';
+				$_feed .= addFeedFooter();
 
-				file_put_contents(dirname(__FILE__) . '/' . $rssFile, $rssFeed);
+				file_put_contents(dirname(__FILE__) . '/' . $xmlFile, $_feed);
 			}
 		}
 	}
 
 	function createGlobalFeed() {
-		$rssFile = 'sourceGlobal.rss';
+		$xmlFile = 'sourceGlobal.rss';
 
 		$board = 'gd';
 
-		if (filemtime($rssFile) < time() - 10) {
+		if (filemtime($xmlFile) < time() - 10) {
 			$feedData = $GLOBALS['globalFeed'];
 
 			$feedData = sortThreadsByDate($feedData, 'global');
 
-			$rssFeed = addFeedHeader($rssFeed, 'https://github.com/tehcojam/board2feed', 'Global /' . $board . '/ feed');
+			$_feed = addFeedHeader('https://github.com/tehcojam/board2feed', 'Global /' . $board . '/ feed');
 
 			foreach ($feedData as &$feedItem) {
-				$rssFeed .= generateFeedItem($feedItem, true);
+				$_feed .= generateFeedItem($feedItem, true);
 			}
 
-			$rssFeed .= '</channel>';
-			$rssFeed .= '</rss>';
+			$_feed .= addFeedFooter();
 
-			file_put_contents(dirname(__FILE__) . '/' . $rssFile, $rssFeed);
+			file_put_contents(dirname(__FILE__) . '/' . $xmlFile, $_feed);
 		}
 	}
 
